@@ -182,13 +182,15 @@ if __name__ == '__main__':
                     Print('id:' + str(index) + " umount: " + device.mount_point + ' success')
                 index = index + 1
 
-        elif args.umount in AllDeviceMap:
-            umount_cmd = 'fusermount -u -z ' + args.umount
-            res = os.system(umount_cmd)
-            if res == 0:
-                Print(umount_cmd + ' success')
-            else:
-                Print(umount_cmd + ' fail', fcolor='red', style='bold')
-                logging.error("unable to umount: " + device.mount_point)
         else:
-            logging.error("Unable to reslove arg " + args.umount)
+            for device in AllDeviceMap:
+                if args.umount == device.mount_point:
+                    umount_cmd = 'fusermount -u -z ' + device.mount_point
+                    res = os.system(umount_cmd)
+                    if res == 0:
+                        Print(umount_cmd + ' success')
+                    else:
+                        Print(umount_cmd + ' fail', fcolor='red', style='bold')
+                        logging.error("unable to umount: " + device.mount_point)
+                    exit(0)
+            logging.error("Unable to resolve arg " + args.umount)
