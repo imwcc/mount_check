@@ -64,10 +64,12 @@ def Colors(text, fcolor=None, bcolor=None, style=None):
 class MountDevice:
     mount_point: None
     ip: None
+    type: None
 
     def __init__(self):
         self.ip = None  # str
         self.mount_point = None  # str
+        self.type = None  # str
 
     def is_valid(self):
         if self.ip is not None and self.mount_point is not None:
@@ -75,12 +77,30 @@ class MountDevice:
         return False
 
     def to_string(self):
-        return "ip: %s mount_point %s" % (str(self.ip), str(self.mount_point))
+        return "ip: %s type: %s mount_point %s " % (str(self.ip), self.type, str(self.mount_point))
 
 
 def Print(text, fcolor='green', style='bold'):
-    forMatText = Colors(text, fcolor, style)
-    print(forMatText)
+    formatText = Colors(text, fcolor, style)
+    print(formatText)
+
+
+def do_umount(mount_device: MountDevice) -> bool:
+    umount_cmd = 'fusermount -u -z ' + mount_device.mount_point
+    # sshfs 挂载
+    if mount_device.type == 'fuse.sshfs':
+        logging.info(umount_cmd)
+        # Print(umount_cmd, fcolor='yellow', style='bold')
+    elif mount_device.type == 'cifs':
+        umount_cmd = None
+        Print("Didn't support umount samba mount point, please contact admin", fcolor='yellow', style='bold')
+    else:
+        logging.error("unknown mount type %s " % (mount_device.to_string()))
+        # Print(umount_cmd, fcolor='red', style='bold')
+    if umount_cmd is not None and os.system(umount_cmd) == 0:
+        return True
+    else:
+        return False
 
 
 def check_mount_device(mount_device, clear=False):
@@ -95,9 +115,7 @@ def check_mount_device(mount_device, clear=False):
         Print(mount_device.to_string() + " Fail", fcolor='red', style='bold')
         logging.error(mount_device.to_string() + "Fail")
         if clear:
-            umount_cmd = 'fusermount -u -z ' + mount_device.mount_point
-            Print(umount_cmd, fcolor='red', style='bold')
-            os.system(umount_cmd)
+            do_umount(mount_device)
 
 
 def print_hi(name):
@@ -139,6 +157,13 @@ if __name__ == '__main__':
             # print(device[2])
             if CUSTOM_ROOT_DIR in device[2]:
                 mountDevice.mount_point = device[2]
+
+            # 获取 mount type 类型
+            try:
+                mountDevice.type = device[device.index('type') + 1]
+            except IndexError as e:
+                logging.error(e)
+
             if mountDevice.is_valid():
                 logging.info("new mount device: " + str(mountDevice.to_string()))
                 AllDeviceMap.append(mountDevice)
@@ -150,7 +175,7 @@ if __name__ == '__main__':
     # 只是秀 list
     if args.list is True:
         for device in AllDeviceMap:
-            Print("Device: " + device.to_string())
+            Print(device.to_string())
             logging.debug("Device: " + device.to_string())
         exit(0)
     elif args.check != 'unset':
@@ -173,24 +198,20 @@ if __name__ == '__main__':
             Print("Mount point count: " + str(len(AllDeviceMap)))
             index = 1
             for device in AllDeviceMap:
-                umount_cmd = 'fusermount -u -z ' + device.mount_point
-                res = os.system(umount_cmd)
-                if res != 0:
-                    Print('id:' + str(index) + " unable to umount: " + device.mount_point, fcolor='red', style='bold')
-                    # logging.warning("unable to umount: " + device.mount_point)
-                else:
+                success = do_umount(device)
+                if success is True:
                     Print('id:' + str(index) + " umount: " + device.mount_point + ' success')
+                else:
+                    Print('id:' + str(index) + " unable to umount: " + device.mount_point, fcolor='red', style='bold')
                 index = index + 1
 
         else:
             for device in AllDeviceMap:
                 if args.umount == device.mount_point:
-                    umount_cmd = 'fusermount -u -z ' + device.mount_point
-                    res = os.system(umount_cmd)
-                    if res == 0:
-                        Print(umount_cmd + ' success')
+                    if do_umount(device):
+                        Print("umount %s %s" % (device.mount_point, 'success'))
                     else:
-                        Print(umount_cmd + ' fail', fcolor='red', style='bold')
+                        Print("umount %s %s" % (device.mount_point, 'fail'), fcolor='red', style='bold')
                         logging.error("unable to umount: " + device.mount_point)
                     exit(0)
             logging.error("Unable to resolve arg " + args.umount)
