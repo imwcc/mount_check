@@ -93,7 +93,8 @@ def do_umount(mount_device: MountDevice) -> bool:
         # Print(umount_cmd, fcolor='yellow', style='bold')
     elif mount_device.type == 'cifs':
         umount_cmd = None
-        Print("Didn't support umount samba mount point, please contact admin", fcolor='yellow', style='bold')
+        # Print("Didn't support umount samba mount point, please contact admin", fcolor='yellow', style='bold')
+        Print("Please run cmd: sudo umount -f -a -t cifs -l")
     else:
         logging.error("unknown mount type %s " % (mount_device.to_string()))
         # Print(umount_cmd, fcolor='red', style='bold')
@@ -215,3 +216,4 @@ if __name__ == '__main__':
                         logging.error("unable to umount: " + device.mount_point)
                     exit(0)
             logging.error("Unable to resolve arg " + args.umount)
+
